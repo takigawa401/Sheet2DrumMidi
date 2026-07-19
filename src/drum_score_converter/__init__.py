@@ -13,6 +13,7 @@ from drum_score_converter.musicxml_exporter import (
     MusicXMLExportError,
     MusicXMLInstrument,
 )
+from drum_score_converter.pdf_loader import PDFDocument, PDFLoader, PDFLoadError
 from drum_score_converter.score_model import (
     DrumInstrument,
     Measure,
@@ -38,6 +39,9 @@ __all__ = [
     "MusicXMLInstrument",
     "Note",
     "Part",
+    "PDFDocument",
+    "PDFLoader",
+    "PDFLoadError",
     "Rest",
     "Score",
     "Tempo",
