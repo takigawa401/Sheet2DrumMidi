@@ -116,6 +116,7 @@ def test_note_events_use_drum_channel_mapping_velocity_and_duration() -> None:
 def test_gm_percussion_mapping_is_explicit_and_complete() -> None:
     assert dict(GM_PERCUSSION_MAPPING) == {
         DrumInstrument.KICK: 36,
+        DrumInstrument.SIDE_STICK: 37,
         DrumInstrument.SNARE: 38,
         DrumInstrument.CLOSED_HI_HAT: 42,
         DrumInstrument.PEDAL_HI_HAT: 44,

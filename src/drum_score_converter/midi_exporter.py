@@ -13,7 +13,9 @@ from typing import Final, Literal
 
 import mido
 
+from drum_score_converter.count_in_generator import COUNT_IN_NOTE
 from drum_score_converter.score_model import (
+    DEFAULT_TEMPO_BPM,
     DrumInstrument,
     Note,
     Part,
@@ -25,12 +27,12 @@ from drum_score_converter.score_model import (
 DRUM_CHANNEL: Final = 9
 BASE_TICKS_PER_QUARTER: Final = 480
 _MAX_TICKS_PER_QUARTER: Final = 0x7FFF
-_DEFAULT_TEMPO_BPM: Final = 120.0
 _MAX_MIDI_TEMPO: Final = 0xFFFFFF
 
 GM_PERCUSSION_MAPPING: Final[Mapping[DrumInstrument, int]] = MappingProxyType(
     {
         DrumInstrument.KICK: 36,
+        DrumInstrument.SIDE_STICK: COUNT_IN_NOTE,
         DrumInstrument.SNARE: 38,
         DrumInstrument.CLOSED_HI_HAT: 42,
         DrumInstrument.PEDAL_HI_HAT: 44,
@@ -125,7 +127,7 @@ class MIDIExporter:
 
             tempo = _tempo_for_measure(score, measure_index)
             if measure_index == 0 and tempo is None:
-                tempo = Tempo(_DEFAULT_TEMPO_BPM)
+                tempo = Tempo(DEFAULT_TEMPO_BPM)
             if tempo is not None and tempo.bpm != previous_tempo:
                 track.append(
                     mido.MetaMessage(
