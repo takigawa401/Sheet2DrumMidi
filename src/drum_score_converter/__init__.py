@@ -13,6 +13,12 @@ from drum_score_converter.musicxml_exporter import (
     MusicXMLExportError,
     MusicXMLInstrument,
 )
+from drum_score_converter.page_renderer import (
+    DEFAULT_DPI,
+    PageRenderer,
+    PageRenderError,
+    RenderedPage,
+)
 from drum_score_converter.pdf_loader import PDFDocument, PDFLoader, PDFLoadError
 from drum_score_converter.score_model import (
     DrumInstrument,
@@ -27,6 +33,7 @@ from drum_score_converter.score_model import (
 
 __all__ = [
     "BASE_TICKS_PER_QUARTER",
+    "DEFAULT_DPI",
     "DRUM_CHANNEL",
     "DrumInstrument",
     "GM_PERCUSSION_MAPPING",
@@ -42,7 +49,10 @@ __all__ = [
     "PDFDocument",
     "PDFLoader",
     "PDFLoadError",
+    "PageRenderer",
+    "PageRenderError",
     "Rest",
+    "RenderedPage",
     "Score",
     "Tempo",
     "TimeSignature",

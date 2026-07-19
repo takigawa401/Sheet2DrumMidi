@@ -13,6 +13,7 @@ authors = [{ name = "takigawa401" }]
 dependencies = [
     "mido>=1.3.3,<2",
     "pypdf[crypto]>=6.14.2,<7",
+    "pymupdf>=1.28,<2",
 ]
 
 [project.optional-dependencies]
