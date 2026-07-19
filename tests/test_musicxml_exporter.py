@@ -37,27 +37,34 @@ def _example_score() -> Score:
 def test_to_string_creates_parseable_partwise_musicxml() -> None:
     xml = MusicXMLExporter().to_string(_example_score())
     root = ET.fromstring(xml)
+    score_part = root.find("part-list/score-part")
+    part = root.find("part")
 
     assert xml.startswith('<?xml version="1.0" encoding="UTF-8"?>')
     assert root.tag == "score-partwise"
     assert root.get("version") == "4.0"
     assert root.findtext("movement-title") == "練習曲"
     assert root.findtext("part-list/score-part/part-name") == "Drums & Percussion"
-    assert root.find("part-list/score-part").get("id") == "P1"
-    assert root.find("part").get("id") == "P1"
+    assert score_part is not None
+    assert score_part.get("id") == "P1"
+    assert part is not None
+    assert part.get("id") == "P1"
 
 
 def test_exporter_outputs_measure_attributes_tempo_and_timing() -> None:
     root = ET.fromstring(MusicXMLExporter().to_string(_example_score()))
     measure = root.find("part/measure")
 
+    assert measure is not None
     assert measure.get("number") == "1"
     assert measure.findtext("attributes/divisions") == "1"
     assert measure.findtext("attributes/time/beats") == "4"
     assert measure.findtext("attributes/time/beat-type") == "4"
     assert measure.findtext("attributes/clef/sign") == "percussion"
     assert measure.findtext("direction/direction-type/metronome/per-minute") == "120"
-    assert measure.find("direction/sound").get("tempo") == "120"
+    sound = measure.find("direction/sound")
+    assert sound is not None
+    assert sound.get("tempo") == "120"
     assert measure.findtext("forward/duration") == "1"
 
 
@@ -70,7 +77,9 @@ def test_same_offset_notes_are_encoded_as_a_chord() -> None:
     assert notes[0].findtext("duration") == "1"
     assert notes[1].findtext("duration") == "1"
     assert notes[0].find("notations/articulations/accent") is not None
-    assert notes[3].find("notehead").get("parentheses") == "yes"
+    notehead = notes[3].find("notehead")
+    assert notehead is not None
+    assert notehead.get("parentheses") == "yes"
 
 
 def test_notes_reference_explicit_percussion_instruments() -> None:
