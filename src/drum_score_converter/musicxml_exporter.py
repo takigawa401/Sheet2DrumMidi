@@ -43,6 +43,9 @@ INSTRUMENT_MAPPING: Final[Mapping[DrumInstrument, MusicXMLInstrument]] = (
     MappingProxyType(
         {
             DrumInstrument.KICK: MusicXMLInstrument("Kick Drum", "F", 4, "normal"),
+            DrumInstrument.SIDE_STICK: MusicXMLInstrument(
+                "Side Stick", "C", 5, "x"
+            ),
             DrumInstrument.SNARE: MusicXMLInstrument("Snare Drum", "C", 5, "normal"),
             DrumInstrument.CLOSED_HI_HAT: MusicXMLInstrument(
                 "Closed Hi-Hat", "G", 5, "x"

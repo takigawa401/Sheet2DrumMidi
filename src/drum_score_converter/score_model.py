@@ -6,12 +6,16 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 from fractions import Fraction
+from typing import Final
+
+DEFAULT_TEMPO_BPM: Final = 120.0
 
 
 class DrumInstrument(StrEnum):
     """Drum instruments recognized by the score model."""
 
     KICK = "kick"
+    SIDE_STICK = "side_stick"
     SNARE = "snare"
     CLOSED_HI_HAT = "closed_hi_hat"
     OPEN_HI_HAT = "open_hi_hat"
