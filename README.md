@@ -2,27 +2,45 @@
 
 ドラム譜PDFを画像認識し、MusicXMLおよびMIDIへ変換するPythonライブラリです。
 
-## Status
+## Project Status
 
-現在開発中です。
+🚧 Under active development
 
-## Planned Features
+### Completed
+- ✅ Project initialization
+- ✅ Score domain model
+- ✅ MusicXML export
 
-- 通常PDFおよびパスワード付きPDFの読み込み
-- PDFページの画像化
-- Vision AIによるドラム譜認識
-- MusicXML出力
-- Standard MIDI File出力
-- Cubase / EZdrummer 3で利用可能なMIDI生成
+### Planned
+- MIDI export
+- PDF loading
+- Page rendering
+- OCR
+
+## Features
+
+### Implemented
+- ✅ MusicXML export
+
+### Planned
+- PDF loading
+- Page rendering
+- Vision AI recognition
+- MIDI export
 
 ## Pipeline
 
 PDF
-→ Page Images
-→ Vision Recognition
-→ MusicXML
-→ MIDI
-→ Cubase / EZdrummer 3
+ ↓
+Page Images
+ ↓
+Vision Recognition
+ ↓
+Score Domain Model
+ ├── MusicXML
+ └── MIDI
+        ↓
+Cubase / EZdrummer 3
 
 ## Requirements
 
@@ -36,4 +54,4 @@ PDF
 
 ## License
 
-未定
+MIT License
