@@ -21,6 +21,10 @@ from drum_score_converter.musicxml_exporter import (
     MusicXMLExportError,
     MusicXMLInstrument,
 )
+from drum_score_converter.openai_vision_recognizer import (
+    OpenAIConfig,
+    OpenAIVisionRecognizer,
+)
 from drum_score_converter.page_renderer import (
     DEFAULT_DPI,
     PageRenderer,
@@ -53,6 +57,16 @@ from drum_score_converter.score_model import (
     Tempo,
     TimeSignature,
 )
+from drum_score_converter.vision_recognizer import (
+    AuthenticationError,
+    CommunicationError,
+    ConfigurationError,
+    InternalRecognitionError,
+    ProviderResponseError,
+    RecognitionConversionError,
+    RecognitionError,
+    VisionRecognizer,
+)
 
 __all__ = [
     "BASE_TICKS_PER_QUARTER",
@@ -75,6 +89,8 @@ __all__ = [
     "MusicXMLExportError",
     "MusicXMLInstrument",
     "Note",
+    "OpenAIConfig",
+    "OpenAIVisionRecognizer",
     "Part",
     "PDFDocument",
     "PDFLoader",
@@ -83,6 +99,8 @@ __all__ = [
     "PageRenderError",
     "Rest",
     "RecognitionLocation",
+    "RecognitionConversionError",
+    "RecognitionError",
     "RecognitionResult",
     "RecognitionWarning",
     "RecognitionWarningCode",
@@ -98,5 +116,11 @@ __all__ = [
     "Score",
     "Tempo",
     "TimeSignature",
+    "VisionRecognizer",
+    "AuthenticationError",
+    "CommunicationError",
+    "ConfigurationError",
+    "InternalRecognitionError",
+    "ProviderResponseError",
 ]
 
