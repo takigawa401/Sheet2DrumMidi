@@ -39,7 +39,11 @@ def _fraction_value(value: RecognizedFraction) -> Fraction:
 
 @dataclass(frozen=True, slots=True)
 class RecognizedFraction:
-    """An exact non-negative rational value as recognized by Vision AI."""
+    """An exact non-negative value expressed in quarter-note units.
+
+    A quarter note is ``1``, an eighth note is ``1/2``, and a sixteenth note
+    is ``1/4``. Offsets and durations use the same units as the Score domain.
+    """
 
     numerator: int
     denominator: int
@@ -84,7 +88,7 @@ class RecognizedTimeSignature:
 
 @dataclass(frozen=True, slots=True)
 class RecognizedNote:
-    """A recognized drum note with exact timing and optional attributes."""
+    """A drum note timed exactly in quarter-note units."""
 
     instrument: RecognizedInstrument
     offset: RecognizedFraction
@@ -120,7 +124,7 @@ class RecognizedNote:
 
 @dataclass(frozen=True, slots=True)
 class RecognizedRest:
-    """A recognized rest with exact timing."""
+    """A recognized rest timed exactly in quarter-note units."""
 
     offset: RecognizedFraction
     duration: RecognizedFraction

@@ -24,8 +24,10 @@ def build_openai_prompt(page_number: int) -> str:
         "empty structures, unsorted events, non-standard meters, and uncertain "
         "values when structurally representable. Do not map instruments to a "
         "domain enum, normalize event order, enforce measure capacity, or invent "
-        "missing musical data. Include explicit warnings supplied by the observed "
-        "ambiguities."
+        "missing musical data. Express every offset and duration in quarter-note "
+        "units: quarter note = 1, eighth note = 1/2, sixteenth note = 1/4, "
+        "and a 4/4 measure has capacity 4. Include explicit warnings supplied by "
+        "the observed ambiguities."
     )
 
 
@@ -77,6 +79,10 @@ _CONFIDENCE_SCHEMA: Final[dict[str, object]] = {
 }
 _FRACTION_SCHEMA: Final[dict[str, object]] = {
     "type": "object",
+    "description": (
+        "An exact offset or duration in quarter-note units: quarter note = 1, "
+        "eighth note = 1/2, sixteenth note = 1/4."
+    ),
     "properties": {
         "numerator": {"type": "integer", "minimum": 0},
         "denominator": {"type": "integer", "minimum": 1},

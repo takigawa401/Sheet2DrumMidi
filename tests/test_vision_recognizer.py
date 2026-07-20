@@ -202,10 +202,13 @@ def test_prompt_and_request_building_are_independently_testable() -> None:
 
     assert str(page.page_number) in prompt
     assert "Do not map instruments" in prompt
+    assert "quarter-note units" in prompt
+    assert "4/4 measure has capacity 4" in prompt
     assert request["model"] == "vision-model"
     encoded = base64.b64encode(page.content).decode("ascii")
     assert f"data:image/png;base64,{encoded}" in request_text
     assert '"type": "json_schema"' in request_text
+    assert "quarter-note units" in request_text
 
 
 def test_provider_response_parsing_is_independently_testable() -> None:
