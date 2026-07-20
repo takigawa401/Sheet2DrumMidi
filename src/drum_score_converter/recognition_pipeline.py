@@ -13,6 +13,10 @@ from drum_score_converter.page_renderer import (
 )
 from drum_score_converter.pdf_loader import PDFDocument, PDFLoader, PDFLoadError
 from drum_score_converter.recognition_model import RecognitionResult
+from drum_score_converter.recognition_validator import (
+    RecognitionValidationError,
+    RecognitionValidator,
+)
 from drum_score_converter.score_builder import ScoreBuilder, ScoreBuildError
 from drum_score_converter.score_model import Score
 from drum_score_converter.vision_recognizer import RecognitionError, VisionRecognizer
@@ -21,6 +25,7 @@ type _PipelineStage = Literal[
     "pdf_load",
     "page_render",
     "recognition",
+    "validation",
     "score_build",
     "pipeline",
 ]
@@ -56,6 +61,7 @@ class RecognitionPipeline:
     ) -> None:
         self._recognizer = recognizer
         self._dpi = dpi
+        self._validator = RecognitionValidator()
         self._score_builder = ScoreBuilder()
 
     async def process(
@@ -85,6 +91,7 @@ class RecognitionPipeline:
                 rendered_page,
                 page_number,
             )
+            self._validate_result(recognition_result, page_number)
             return self._build_score(recognition_result, page_number)
 
         raise RecognitionPipelineError(
@@ -164,6 +171,20 @@ class RecognitionPipeline:
                 page_number=page_number,
             )
         return result
+
+    def _validate_result(
+        self,
+        result: RecognitionResult,
+        page_number: int,
+    ) -> None:
+        try:
+            self._validator.validate(result)
+        except RecognitionValidationError as error:
+            raise RecognitionPipelineError(
+                f"Recognition validation failed for page {page_number}.",
+                stage="validation",
+                page_number=page_number,
+            ) from error
 
     def _build_score(
         self,

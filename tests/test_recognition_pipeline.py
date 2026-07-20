@@ -31,6 +31,11 @@ from drum_score_converter.recognition_pipeline import (
     RecognitionPipeline,
     RecognitionPipelineError,
 )
+from drum_score_converter.recognition_validator import (
+    RecognitionValidationError,
+    RecognitionValidationErrorCode,
+    RecognitionValidator,
+)
 from drum_score_converter.score_builder import ScoreBuilder, ScoreBuildError
 from drum_score_converter.score_model import Score
 from drum_score_converter.vision_recognizer import CommunicationError
@@ -109,6 +114,22 @@ class _UnknownInstrumentRecognizer:
         return _recognition_result(page.page_number, instrument="unknown stack")
 
 
+class _DuplicateEventRecognizer:
+    async def recognize(self, page: RenderedPage) -> RecognitionResult:
+        result = _recognition_result(page.page_number)
+        recognized_page = result.pages[0]
+        measure = recognized_page.parts[0].measures[0]
+        event = measure.events[0]
+        duplicate_measure = RecognizedMeasure(
+            measure.number,
+            measure.time_signature,
+            (event, event),
+            measure.tempo_bpm,
+        )
+        part = RecognizedPart("Drum Kit", (duplicate_measure,))
+        return RecognitionResult((RecognizedPage(page.page_number, (part,)),))
+
+
 def test_processes_one_page_pdf_and_exporters_accept_score(
     tmp_path: Path,
 ) -> None:
@@ -147,6 +168,7 @@ def test_calls_render_recognize_and_build_in_order(
     _write_pdf(path)
     calls: list[str] = []
     original_render = PageRenderer.render
+    original_validate = RecognitionValidator.validate
     original_build = ScoreBuilder.build
 
     def tracked_render(
@@ -166,17 +188,58 @@ def test_calls_render_recognize_and_build_in_order(
         calls.append(f"build:{result.pages[0].page_number}")
         return original_build(builder, result)
 
+    def tracked_validate(
+        validator: RecognitionValidator,
+        result: RecognitionResult,
+    ) -> tuple[object, ...]:
+        calls.append(f"validate:{result.pages[0].page_number}")
+        return original_validate(validator, result)
+
     class TrackingRecognizer:
         async def recognize(self, page: RenderedPage) -> RecognitionResult:
             calls.append(f"recognize:{page.page_number}")
             return _recognition_result(page.page_number)
 
     monkeypatch.setattr(PageRenderer, "render", tracked_render)
+    monkeypatch.setattr(RecognitionValidator, "validate", tracked_validate)
     monkeypatch.setattr(ScoreBuilder, "build", tracked_build)
 
     asyncio.run(RecognitionPipeline(TrackingRecognizer(), dpi=72).process(path))
 
-    assert calls == ["render:1", "recognize:1", "build:1"]
+    assert calls == ["render:1", "recognize:1", "validate:1", "build:1"]
+
+
+def test_validation_error_is_wrapped_before_score_build(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "score.pdf"
+    _write_pdf(path)
+    build_called = False
+
+    def tracked_build(
+        builder: ScoreBuilder,
+        result: RecognitionResult,
+    ) -> Score:
+        nonlocal build_called
+        build_called = True
+        raise AssertionError("ScoreBuilder must not be called")
+
+    monkeypatch.setattr(ScoreBuilder, "build", tracked_build)
+
+    with pytest.raises(RecognitionPipelineError) as caught:
+        asyncio.run(
+            RecognitionPipeline(_DuplicateEventRecognizer(), dpi=72).process(path)
+        )
+
+    assert caught.value.stage == "validation"
+    assert caught.value.page_number == 1
+    assert isinstance(caught.value.__cause__, RecognitionValidationError)
+    assert (
+        caught.value.__cause__.code
+        is RecognitionValidationErrorCode.DUPLICATE_EVENT
+    )
+    assert build_called is False
 
 
 def test_invalid_pdf_error_is_wrapped_with_load_stage(tmp_path: Path) -> None:
