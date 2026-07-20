@@ -46,6 +46,15 @@ from drum_score_converter.recognition_model import (
     RecognizedRest,
     RecognizedTimeSignature,
 )
+from drum_score_converter.score_builder import (
+    InconsistentRecognitionError,
+    InstrumentMappingError,
+    MissingScoreDataError,
+    ScoreBuilder,
+    ScoreBuildError,
+    ScoreConstructionError,
+    UnsupportedNotationError,
+)
 from drum_score_converter.score_model import (
     DEFAULT_TEMPO_BPM,
     DrumInstrument,
@@ -114,13 +123,20 @@ __all__ = [
     "RecognizedTimeSignature",
     "RenderedPage",
     "Score",
+    "ScoreBuildError",
+    "ScoreBuilder",
+    "ScoreConstructionError",
     "Tempo",
     "TimeSignature",
+    "UnsupportedNotationError",
     "VisionRecognizer",
     "AuthenticationError",
     "CommunicationError",
     "ConfigurationError",
     "InternalRecognitionError",
     "ProviderResponseError",
+    "InconsistentRecognitionError",
+    "InstrumentMappingError",
+    "MissingScoreDataError",
 ]
 
