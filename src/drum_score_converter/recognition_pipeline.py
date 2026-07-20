@@ -18,7 +18,7 @@ from drum_score_converter.recognition_validator import (
     RecognitionValidator,
 )
 from drum_score_converter.score_builder import ScoreBuilder, ScoreBuildError
-from drum_score_converter.score_model import Score
+from drum_score_converter.score_model import Part, Score
 from drum_score_converter.vision_recognizer import RecognitionError, VisionRecognizer
 
 type _PipelineStage = Literal[
@@ -27,6 +27,7 @@ type _PipelineStage = Literal[
     "recognition",
     "validation",
     "score_build",
+    "score_merge",
     "pipeline",
 ]
 
@@ -47,11 +48,7 @@ class RecognitionPipelineError(Exception):
 
 
 class RecognitionPipeline:
-    """Orchestrate PDF loading, rendering, recognition, and score building.
-
-    The MVP accepts exactly one PDF page. It does not aggregate page-level
-    recognition results or scores.
-    """
+    """Orchestrate PDF loading, page recognition, and score construction."""
 
     def __init__(
         self,
@@ -70,7 +67,7 @@ class RecognitionPipeline:
         *,
         password: str | None = None,
     ) -> Score:
-        """Process one PDF page entirely in memory and return its Score."""
+        """Process PDF pages sequentially in memory and return one merged Score."""
         try:
             document = PDFLoader.load(pdf_path, password=password)
         except PDFLoadError as error:
@@ -79,12 +76,7 @@ class RecognitionPipeline:
                 stage="pdf_load",
             ) from error
 
-        if document.page_count != 1:
-            raise RecognitionPipelineError(
-                "RecognitionPipeline currently supports exactly one PDF page.",
-                stage="pipeline",
-            )
-
+        merged_score: Score | None = None
         for page_number in range(1, document.page_count + 1):
             rendered_page = self._render_page(document, page_number)
             recognition_result = await self._recognize_page(
@@ -92,7 +84,18 @@ class RecognitionPipeline:
                 page_number,
             )
             self._validate_result(recognition_result, page_number)
-            return self._build_score(recognition_result, page_number)
+            page_score = self._build_score(recognition_result, page_number)
+            if merged_score is None:
+                merged_score = page_score
+            else:
+                merged_score = self._merge_page_score(
+                    merged_score,
+                    page_score,
+                    page_number,
+                )
+
+        if merged_score is not None:
+            return merged_score
 
         raise RecognitionPipelineError(
             "The PDF does not contain a processable page.",
@@ -197,5 +200,53 @@ class RecognitionPipeline:
             raise RecognitionPipelineError(
                 f"Score construction failed for page {page_number}.",
                 stage="score_build",
+                page_number=page_number,
+            ) from error
+
+    def _merge_page_score(
+        self,
+        merged_score: Score,
+        page_score: Score,
+        page_number: int,
+    ) -> Score:
+        if len(merged_score.parts) != len(page_score.parts):
+            raise RecognitionPipelineError(
+                f"Part count does not match on page {page_number}.",
+                stage="score_merge",
+                page_number=page_number,
+            )
+
+        merged_parts: list[Part] = []
+        for existing_part, page_part in zip(
+            merged_score.parts,
+            page_score.parts,
+            strict=True,
+        ):
+            if existing_part.name != page_part.name:
+                raise RecognitionPipelineError(
+                    f"Part order or name does not match on page {page_number}.",
+                    stage="score_merge",
+                    page_number=page_number,
+                )
+            try:
+                merged_parts.append(
+                    Part(
+                        name=existing_part.name,
+                        measures=existing_part.measures + page_part.measures,
+                    )
+                )
+            except (TypeError, ValueError) as error:
+                raise RecognitionPipelineError(
+                    f"Scores could not be merged at page {page_number}.",
+                    stage="score_merge",
+                    page_number=page_number,
+                ) from error
+
+        try:
+            return Score(parts=tuple(merged_parts), title=merged_score.title)
+        except (TypeError, ValueError) as error:
+            raise RecognitionPipelineError(
+                f"Scores could not be merged at page {page_number}.",
+                stage="score_merge",
                 page_number=page_number,
             ) from error

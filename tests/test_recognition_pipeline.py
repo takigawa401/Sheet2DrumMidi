@@ -60,6 +60,8 @@ def _recognition_result(
     page_number: int,
     *,
     instrument: str = "snare",
+    part_name: str = "Drum Kit",
+    measure_number: int | None = None,
 ) -> RecognitionResult:
     note = RecognizedNote(
         RecognizedInstrument(instrument),
@@ -67,12 +69,12 @@ def _recognition_result(
         RecognizedFraction(1, 1),
     )
     measure = RecognizedMeasure(
-        1,
+        page_number if measure_number is None else measure_number,
         RecognizedTimeSignature(4, 4),
         (note,),
         tempo_bpm=120,
     )
-    part = RecognizedPart("Drum Kit", (measure,))
+    part = RecognizedPart(part_name, (measure,))
     return RecognitionResult(
         (RecognizedPage(page_number, (part,)),),
         title="Pipeline Test",
@@ -95,6 +97,29 @@ class _FailingRecognizer:
     async def recognize(self, page: RenderedPage) -> RecognitionResult:
         self.calls.append(page.page_number)
         raise CommunicationError("provider unavailable")
+
+
+class _FailingOnPageRecognizer:
+    def __init__(self, fail_page: int) -> None:
+        self.fail_page = fail_page
+        self.calls: list[int] = []
+
+    async def recognize(self, page: RenderedPage) -> RecognitionResult:
+        self.calls.append(page.page_number)
+        if page.page_number == self.fail_page:
+            raise CommunicationError("provider unavailable")
+        return _recognition_result(page.page_number)
+
+
+class _MismatchedPartRecognizer:
+    async def recognize(self, page: RenderedPage) -> RecognitionResult:
+        part_name = "Percussion" if page.page_number == 2 else "Drum Kit"
+        return _recognition_result(page.page_number, part_name=part_name)
+
+
+class _ResetMeasureNumberRecognizer:
+    async def recognize(self, page: RenderedPage) -> RecognitionResult:
+        return _recognition_result(page.page_number, measure_number=1)
 
 
 class _WrongPageRecognizer:
@@ -165,7 +190,7 @@ def test_calls_render_recognize_and_build_in_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     path = tmp_path / "score.pdf"
-    _write_pdf(path)
+    _write_pdf(path, page_count=2)
     calls: list[str] = []
     original_render = PageRenderer.render
     original_validate = RecognitionValidator.validate
@@ -206,7 +231,16 @@ def test_calls_render_recognize_and_build_in_order(
 
     asyncio.run(RecognitionPipeline(TrackingRecognizer(), dpi=72).process(path))
 
-    assert calls == ["render:1", "recognize:1", "validate:1", "build:1"]
+    assert calls == [
+        "render:1",
+        "recognize:1",
+        "validate:1",
+        "build:1",
+        "render:2",
+        "recognize:2",
+        "validate:2",
+        "build:2",
+    ]
 
 
 def test_validation_error_is_wrapped_before_score_build(
@@ -364,6 +398,22 @@ def test_recognition_error_is_wrapped_and_stops_processing(
     assert isinstance(caught.value.__cause__, CommunicationError)
 
 
+def test_failure_on_second_page_reports_page_number_and_stops(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "score.pdf"
+    _write_pdf(path, page_count=3)
+    recognizer = _FailingOnPageRecognizer(fail_page=2)
+
+    with pytest.raises(RecognitionPipelineError) as caught:
+        asyncio.run(RecognitionPipeline(recognizer, dpi=72).process(path))
+
+    assert recognizer.calls == [1, 2]
+    assert caught.value.stage == "recognition"
+    assert caught.value.page_number == 2
+    assert isinstance(caught.value.__cause__, CommunicationError)
+
+
 def test_score_build_error_is_wrapped_with_page_context(tmp_path: Path) -> None:
     path = tmp_path / "score.pdf"
     _write_pdf(path)
@@ -381,19 +431,44 @@ def test_score_build_error_is_wrapped_with_page_context(tmp_path: Path) -> None:
     assert isinstance(caught.value.__cause__, ScoreBuildError)
 
 
-def test_multiple_page_pdf_is_rejected_before_page_processing(
+def test_multiple_page_pdf_is_processed_in_order_and_measures_are_merged(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "multiple.pdf"
-    _write_pdf(path, page_count=3)
+    _write_pdf(path, page_count=2)
     recognizer = _FakeRecognizer()
 
-    with pytest.raises(RecognitionPipelineError, match="exactly one") as caught:
-        asyncio.run(RecognitionPipeline(recognizer, dpi=72).process(path))
+    score = asyncio.run(RecognitionPipeline(recognizer, dpi=72).process(path))
 
-    assert caught.value.stage == "pipeline"
-    assert caught.value.page_number is None
-    assert recognizer.calls == []
+    assert recognizer.calls == [1, 2]
+    assert [measure.number for measure in score.parts[0].measures] == [1, 2]
+
+
+def test_merge_rejects_mismatched_parts(tmp_path: Path) -> None:
+    path = tmp_path / "multiple.pdf"
+    _write_pdf(path, page_count=2)
+
+    with pytest.raises(RecognitionPipelineError) as caught:
+        asyncio.run(
+            RecognitionPipeline(_MismatchedPartRecognizer(), dpi=72).process(path)
+        )
+
+    assert caught.value.stage == "score_merge"
+    assert caught.value.page_number == 2
+
+
+def test_domain_model_merge_error_is_wrapped(tmp_path: Path) -> None:
+    path = tmp_path / "multiple.pdf"
+    _write_pdf(path, page_count=2)
+
+    with pytest.raises(RecognitionPipelineError) as caught:
+        asyncio.run(
+            RecognitionPipeline(_ResetMeasureNumberRecognizer(), dpi=72).process(path)
+        )
+
+    assert caught.value.stage == "score_merge"
+    assert caught.value.page_number == 2
+    assert isinstance(caught.value.__cause__, ValueError)
 
 
 def test_pipeline_does_not_write_rendered_images(tmp_path: Path) -> None:
