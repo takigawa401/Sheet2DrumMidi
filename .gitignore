@@ -20,5 +20,7 @@ build/
 .vscode/
 .idea/
 
-pages/
+input/
 output/
+pages/
+
