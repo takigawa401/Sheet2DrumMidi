@@ -46,6 +46,10 @@ from drum_score_converter.recognition_model import (
     RecognizedRest,
     RecognizedTimeSignature,
 )
+from drum_score_converter.recognition_pipeline import (
+    RecognitionPipeline,
+    RecognitionPipelineError,
+)
 from drum_score_converter.score_builder import (
     InconsistentRecognitionError,
     InstrumentMappingError,
@@ -108,6 +112,8 @@ __all__ = [
     "PageRenderError",
     "Rest",
     "RecognitionLocation",
+    "RecognitionPipeline",
+    "RecognitionPipelineError",
     "RecognitionConversionError",
     "RecognitionError",
     "RecognitionResult",

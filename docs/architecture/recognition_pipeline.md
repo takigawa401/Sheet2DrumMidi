@@ -18,6 +18,10 @@ flowchart TD
 
 実装上、`PageRenderer`は`PDFLoader`が読み込み・必要に応じて復号した`PDFDocument`を受け取る。図では認識処理全体を簡潔に示すため、その入力を「PDF」と表記している。
 
+`RecognitionPipeline`はこの処理順序を接続する非同期のオーケストレーション層である。Issue #18のMVPでは1ページPDFだけを受け付け、複数ページPDFは`RecognitionPipelineError`で明示的に拒否する。PipelineはページやScoreの結合、欠落値の補完、認識結果の修正を行わない。
+
+Pipelineはページ画像を`PageRenderer.render()`でメモリ上に1件だけ生成し、認識後に保持し続けない。`save()`や`render_to_directory()`を使用しないため、一時画像ファイルは作成されない。各処理段階の失敗は、`stage`と該当する場合は`page_number`を持つ`RecognitionPipelineError`へ変換され、元例外はcauseとして保持される。
+
 ## 2. コンポーネントの責務
 
 ### PageRenderer
