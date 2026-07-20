@@ -50,6 +50,13 @@ from drum_score_converter.recognition_pipeline import (
     RecognitionPipeline,
     RecognitionPipelineError,
 )
+from drum_score_converter.recognition_validator import (
+    RecognitionValidationError,
+    RecognitionValidationErrorCode,
+    RecognitionValidationWarning,
+    RecognitionValidationWarningCode,
+    RecognitionValidator,
+)
 from drum_score_converter.score_builder import (
     InconsistentRecognitionError,
     InstrumentMappingError,
@@ -117,6 +124,11 @@ __all__ = [
     "RecognitionConversionError",
     "RecognitionError",
     "RecognitionResult",
+    "RecognitionValidationError",
+    "RecognitionValidationErrorCode",
+    "RecognitionValidationWarning",
+    "RecognitionValidationWarningCode",
+    "RecognitionValidator",
     "RecognitionWarning",
     "RecognitionWarningCode",
     "RecognizedFraction",
