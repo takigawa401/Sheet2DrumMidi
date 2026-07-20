@@ -1,0 +1,55 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 557 >>
+stream
+BT /F1 16 Tf 72 740 Td (Sheet2DrumMidi Integration Fixture) Tj ET
+BT /F1 11 Tf 72 712 Td (Tempo 120 - Time 4/4 - Kick Snare Closed Hi-Hat) Tj ET
+0.8 w
+72 650 m 540 650 l S
+72 642 m 540 642 l S
+72 634 m 540 634 l S
+72 626 m 540 626 l S
+72 618 m 540 618 l S
+72 610 m 72 658 l S
+540 610 m 540 658 l S
+0 0 0 rg
+105 614 6 6 re f
+215 630 6 6 re f
+325 614 6 6 re f
+435 630 6 6 re f
+0.8 w
+108 646 m 114 652 l S
+108 652 m 114 646 l S
+218 646 m 224 652 l S
+218 652 m 224 646 l S
+328 646 m 334 652 l S
+328 652 m 334 646 l S
+438 646 m 444 652 l S
+438 652 m 444 646 l S
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000848 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+918
+%%EOF

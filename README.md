@@ -55,6 +55,26 @@ Cubase / EZdrummer 3
 
 - [Recognition Pipeline](docs/architecture/recognition_pipeline.md)
 
+## Tests
+
+Install the development dependencies and run the complete test suite with the
+project virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
+The deterministic PDF-to-MusicXML/MIDI integration tests can be run on their
+own:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/test_recognition_pipeline_integration.py
+```
+
+These tests use the project-owned PDF under `tests/fixtures` and a fake
+`VisionRecognizer`. They require no API key or network access, and write
+generated MusicXML and MIDI artifacts only to pytest temporary directories.
+
 ## License
 
 MIT License
