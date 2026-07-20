@@ -14,12 +14,14 @@ flowchart TD
     VisionRecognizer --> RecognitionResult[RecognitionResult]
     RecognitionResult --> RecognitionValidator[RecognitionValidator]
     RecognitionValidator --> ScoreBuilder[ScoreBuilder]
-    ScoreBuilder --> Score[Score]
+    ScoreBuilder --> PageScore[Page Score]
+    PageScore --> ScoreMerge[Pipeline Score Merge]
+    ScoreMerge --> Score[Score]
 ```
 
 実装上、`PageRenderer`は`PDFLoader`が読み込み・必要に応じて復号した`PDFDocument`を受け取る。図では認識処理全体を簡潔に示すため、その入力を「PDF」と表記している。
 
-`RecognitionPipeline`はこの処理順序を接続する非同期のオーケストレーション層である。Issue #18のMVPでは1ページPDFだけを受け付け、複数ページPDFは`RecognitionPipelineError`で明示的に拒否する。認識後はValidationを実行し、fatalな不整合を`stage="validation"`で報告してからScore構築へ進む。PipelineはページやScoreの結合、欠落値の補完、認識結果の修正を行わない。
+`RecognitionPipeline`はこの処理順序を接続する非同期のオーケストレーション層である。PDFの各ページを順番にRender、Recognize、Validate、Buildし、ページ単位のScoreをページ順に連結して単一のScoreを返す。認識後はValidationを実行し、fatalな不整合を`stage="validation"`で報告してからScore構築へ進む。Pipelineは小節番号の補正、並び替え、重複除去、認識結果の修正を行わない。
 
 Pipelineはページ画像を`PageRenderer.render()`でメモリ上に1件だけ生成し、認識後に保持し続けない。`save()`や`render_to_directory()`を使用しないため、一時画像ファイルは作成されない。各処理段階の失敗は、`stage`と該当する場合は`page_number`を持つ`RecognitionPipelineError`へ変換され、元例外はcauseとして保持される。
 
@@ -68,7 +70,7 @@ Pipelineはページ画像を`PageRenderer.render()`でメモリ上に1件だけ
 - **責務:** 小節番号、拍子、小節容量、イベントの重複・矛盾・順序を、入力順に決定論的に検査する。入力データは変更しない。
 - **責務外:** 楽器マッピング、欠落情報の補完、イベントの並べ替え、Score生成、confidence閾値判定、Exporter固有の表現可能性検証。
 
-Validatorを独立させることで、Providerとの通信やScore構築を伴わず意味検証だけを単体テストできる。複数ページを検査できるが、ページ結合は行わず、Pipelineの単一ページ制約も変更しない。
+Validatorを独立させることで、Providerとの通信やScore構築を伴わず意味検証だけを単体テストできる。複数ページを検査できるが、ページ結合は行わない。Pipelineは各ページの結果を個別にValidatorへ渡し、ScoreBuilderが生成したページ単位のScoreを結合する。
 
 ### ScoreBuilder
 

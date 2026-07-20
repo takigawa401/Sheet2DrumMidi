@@ -90,9 +90,9 @@ For example, `.env` may contain:
 OPENAI_API_KEY=your-api-key
 ```
 
-Output directories are created automatically. The current Recognition
-Pipeline MVP accepts a one-page PDF; multi-page score aggregation is not yet
-supported.
+Output directories are created automatically. The recognition pipeline
+processes PDF pages sequentially and merges page-level scores in
+page order. It does not renumber, reorder, deduplicate, or repair measures.
 
 ## Documentation
 
