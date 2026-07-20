@@ -46,6 +46,54 @@ Cubase / EZdrummer 3
 
 - Python 3.12以上
 
+## Command-Line Usage
+
+Install the project into its virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e .
+```
+
+Convert a PDF to MIDI and optionally MusicXML:
+
+```powershell
+sheet2drummidi input\score.pdf `
+    --output output\score.mid `
+    --musicxml output\score.musicxml
+```
+
+The module entry point provides the same command. When `--output` is omitted,
+the MIDI file is written next to the input PDF with a `.mid` suffix.
+
+```powershell
+.\.venv\Scripts\python.exe -m sheet2drummidi input\score.pdf
+```
+
+Password-protected PDFs and an explicit API key are supported:
+
+```powershell
+sheet2drummidi D:\scores\score.pdf `
+    --output D:\converted\score.mid `
+    --password "pdf-password" `
+    --api-key "OpenAI-api-key"
+```
+
+The OpenAI API key is resolved in this order:
+
+1. `--api-key`
+2. `OPENAI_API_KEY`
+3. `OPENAI_API_KEY` in `.env` in the current directory
+
+For example, `.env` may contain:
+
+```dotenv
+OPENAI_API_KEY=your-api-key
+```
+
+Output directories are created automatically. The current Recognition
+Pipeline MVP accepts a one-page PDF; multi-page score aggregation is not yet
+supported.
+
 ## Documentation
 
 詳細な仕様と実装方針は

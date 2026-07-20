@@ -68,6 +68,12 @@ def _config() -> OpenAIConfig:
     return OpenAIConfig(api_key=API_KEY, model="vision-model")
 
 
+def test_openai_config_uses_gpt_5_by_default() -> None:
+    config = OpenAIConfig(api_key=API_KEY)
+
+    assert config.model == "gpt-5"
+
+
 def _page(page_number: int = 3) -> RenderedPage:
     return RenderedPage(
         page_number=page_number,
