@@ -52,6 +52,9 @@ Cubase / EZdrummer 3
 [CODEX_INSTRUCTIONS.md](./CODEX_INSTRUCTIONS.md)
 を参照してください。
 
+
+- [Recognition Pipeline](docs/architecture/recognition_pipeline.md)
+
 ## License
 
 MIT License
