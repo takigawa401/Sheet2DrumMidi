@@ -30,7 +30,12 @@ def parse_openai_response(response: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(response, Mapping):
         raise ProviderResponseError("OpenAI response must be an object.")
     status = response.get("status")
-    if status in {"failed", "incomplete"}:
+    if status == "incomplete":
+        details = response.get("incomplete_details")
+        reason = details.get("reason") if isinstance(details, Mapping) else None
+        suffix = f" ({reason})" if isinstance(reason, str) else ""
+        raise ProviderResponseError(f"OpenAI response was incomplete{suffix}.")
+    if status == "failed":
         raise ProviderResponseError("OpenAI response was not completed successfully.")
     output = _require_response_sequence(response.get("output"), "output")
     for item in output:

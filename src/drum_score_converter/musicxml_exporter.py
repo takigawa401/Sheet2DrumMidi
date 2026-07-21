@@ -39,6 +39,13 @@ class MusicXMLInstrument:
     notehead: str
 
 
+@dataclass(frozen=True, slots=True)
+class _EventGroup:
+    offset: Fraction
+    events: tuple[Note | Rest, ...]
+    duration: Fraction
+
+
 INSTRUMENT_MAPPING: Final[Mapping[DrumInstrument, MusicXMLInstrument]] = (
     MappingProxyType(
         {
@@ -142,56 +149,55 @@ class MusicXMLExporter:
         if measure.tempo is not None:
             self._append_tempo(measure_element, measure.tempo.bpm)
 
-        groups: dict[Fraction, list[Note | Rest]] = {}
-        for event in measure.events:
-            groups.setdefault(event.offset, []).append(event)
-
-        position = Fraction(0)
-        for offset in sorted(groups):
-            if offset < position:
-                raise MusicXMLExportError(
-                    f"measure {measure.number} has overlapping event groups"
+        voices = _event_voices(measure)
+        for voice_index, groups in enumerate(voices, start=1):
+            if voice_index > 1:
+                self._append_backup(
+                    measure_element,
+                    _to_divisions(measure.duration, divisions),
                 )
-            if offset > position:
+            position = Fraction(0)
+            for group in groups:
+                if group.offset > position:
+                    self._append_forward(
+                        measure_element,
+                        _to_divisions(group.offset - position, divisions),
+                        voice_index,
+                    )
+                notes = [
+                    event for event in group.events if isinstance(event, Note)
+                ]
+                if notes:
+                    notes.sort(key=lambda note: note.duration, reverse=True)
+                    for note_index, note in enumerate(notes):
+                        self._append_note(
+                            measure_element,
+                            note,
+                            divisions,
+                            part_index,
+                            voice=voice_index,
+                            is_chord=note_index > 0,
+                        )
+                else:
+                    rest = next(
+                        event
+                        for event in group.events
+                        if isinstance(event, Rest)
+                    )
+                    self._append_rest(
+                        measure_element,
+                        rest,
+                        divisions,
+                        voice_index,
+                    )
+                position = group.offset + group.duration
+
+            if position < measure.duration:
                 self._append_forward(
                     measure_element,
-                    _to_divisions(offset - position, divisions),
+                    _to_divisions(measure.duration - position, divisions),
+                    voice_index,
                 )
-                position = offset
-
-            group = groups[offset]
-            notes = [event for event in group if isinstance(event, Note)]
-            rests = [event for event in group if isinstance(event, Rest)]
-            if notes and rests:
-                raise MusicXMLExportError(
-                    f"measure {measure.number} mixes notes and rests at one offset"
-                )
-            if len(rests) > 1:
-                raise MusicXMLExportError(
-                    f"measure {measure.number} has multiple rests at one offset"
-                )
-
-            if notes:
-                notes.sort(key=lambda note: note.duration, reverse=True)
-                for note_index, note in enumerate(notes):
-                    self._append_note(
-                        measure_element,
-                        note,
-                        divisions,
-                        part_index,
-                        is_chord=note_index > 0,
-                    )
-                position += notes[0].duration
-            else:
-                rest = rests[0]
-                self._append_rest(measure_element, rest, divisions)
-                position += rest.duration
-
-        if position < measure.duration:
-            self._append_forward(
-                measure_element,
-                _to_divisions(measure.duration - position, divisions),
-            )
 
     @staticmethod
     def _append_attributes(
@@ -225,6 +231,7 @@ class MusicXMLExporter:
         divisions: int,
         part_index: int,
         *,
+        voice: int,
         is_chord: bool,
     ) -> None:
         note_element = ET.SubElement(measure_element, "note")
@@ -245,7 +252,7 @@ class MusicXMLExporter:
             "instrument",
             id=_instrument_id(part_index, note.instrument),
         )
-        ET.SubElement(note_element, "voice").text = "1"
+        ET.SubElement(note_element, "voice").text = str(voice)
         notehead_attributes = {"parentheses": "yes"} if note.ghost else {}
         ET.SubElement(
             note_element,
@@ -260,20 +267,32 @@ class MusicXMLExporter:
 
     @staticmethod
     def _append_rest(
-        measure_element: ET.Element, rest: Rest, divisions: int
+        measure_element: ET.Element,
+        rest: Rest,
+        divisions: int,
+        voice: int,
     ) -> None:
         note_element = ET.SubElement(measure_element, "note")
         ET.SubElement(note_element, "rest")
         ET.SubElement(note_element, "duration").text = str(
             _to_divisions(rest.duration, divisions)
         )
-        ET.SubElement(note_element, "voice").text = "1"
+        ET.SubElement(note_element, "voice").text = str(voice)
 
     @staticmethod
-    def _append_forward(measure_element: ET.Element, duration: int) -> None:
+    def _append_forward(
+        measure_element: ET.Element,
+        duration: int,
+        voice: int,
+    ) -> None:
         forward = ET.SubElement(measure_element, "forward")
         ET.SubElement(forward, "duration").text = str(duration)
-        ET.SubElement(forward, "voice").text = "1"
+        ET.SubElement(forward, "voice").text = str(voice)
+
+    @staticmethod
+    def _append_backup(measure_element: ET.Element, duration: int) -> None:
+        backup = ET.SubElement(measure_element, "backup")
+        ET.SubElement(backup, "duration").text = str(duration)
 
 
 def _part_id(part_index: int) -> str:
@@ -293,6 +312,46 @@ def _used_instruments(part: Part) -> tuple[DrumInstrument, ...]:
         if isinstance(event, Note)
     }
     return tuple(instrument for instrument in DrumInstrument if instrument in used)
+
+
+def _event_voices(measure: Measure) -> tuple[tuple[_EventGroup, ...], ...]:
+    grouped_events: dict[Fraction, list[Note | Rest]] = {}
+    for event in measure.events:
+        grouped_events.setdefault(event.offset, []).append(event)
+
+    groups = []
+    for offset in sorted(grouped_events):
+        events = tuple(grouped_events[offset])
+        notes = tuple(event for event in events if isinstance(event, Note))
+        rests = tuple(event for event in events if isinstance(event, Rest))
+        if notes and rests:
+            raise MusicXMLExportError(
+                f"measure {measure.number} mixes notes and rests at one offset"
+            )
+        if len(rests) > 1:
+            raise MusicXMLExportError(
+                f"measure {measure.number} has multiple rests at one offset"
+            )
+        groups.append(
+            _EventGroup(
+                offset=offset,
+                events=events,
+                duration=max(event.duration for event in events),
+            )
+        )
+
+    voices: list[list[_EventGroup]] = [[]]
+    voice_ends = [Fraction(0)]
+    for group in groups:
+        for voice_index, end in enumerate(voice_ends):
+            if end <= group.offset:
+                voices[voice_index].append(group)
+                voice_ends[voice_index] = group.offset + group.duration
+                break
+        else:
+            voices.append([group])
+            voice_ends.append(group.offset + group.duration)
+    return tuple(tuple(voice) for voice in voices)
 
 
 def _measure_divisions(measure: Measure) -> int:

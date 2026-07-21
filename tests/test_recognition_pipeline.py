@@ -122,6 +122,31 @@ class _ResetMeasureNumberRecognizer:
         return _recognition_result(page.page_number, measure_number=1)
 
 
+class _MissingContinuationTimeSignatureRecognizer:
+    async def recognize(self, page: RenderedPage) -> RecognitionResult:
+        result = _recognition_result(page.page_number)
+        if page.page_number == 1:
+            return result
+        recognized_page = result.pages[0]
+        part = recognized_page.parts[0]
+        measure = part.measures[0]
+        missing_signature = RecognizedMeasure(
+            measure.number,
+            None,
+            measure.events,
+            measure.tempo_bpm,
+        )
+        return RecognitionResult(
+            (
+                RecognizedPage(
+                    page.page_number,
+                    (RecognizedPart(part.name, (missing_signature,)),),
+                ),
+            ),
+            title=result.title,
+        )
+
+
 class _WrongPageRecognizer:
     async def recognize(self, page: RenderedPage) -> RecognitionResult:
         return _recognition_result(page.page_number + 1)
@@ -457,18 +482,33 @@ def test_merge_rejects_mismatched_parts(tmp_path: Path) -> None:
     assert caught.value.page_number == 2
 
 
-def test_domain_model_merge_error_is_wrapped(tmp_path: Path) -> None:
+def test_page_local_measure_numbers_are_shifted_during_merge(tmp_path: Path) -> None:
     path = tmp_path / "multiple.pdf"
     _write_pdf(path, page_count=2)
 
-    with pytest.raises(RecognitionPipelineError) as caught:
-        asyncio.run(
-            RecognitionPipeline(_ResetMeasureNumberRecognizer(), dpi=72).process(path)
-        )
+    score = asyncio.run(
+        RecognitionPipeline(_ResetMeasureNumberRecognizer(), dpi=72).process(path)
+    )
 
-    assert caught.value.stage == "score_merge"
-    assert caught.value.page_number == 2
-    assert isinstance(caught.value.__cause__, ValueError)
+    assert [measure.number for measure in score.parts[0].measures] == [1, 2]
+
+
+def test_time_signature_is_inherited_across_pages(tmp_path: Path) -> None:
+    path = tmp_path / "multiple.pdf"
+    _write_pdf(path, page_count=2)
+
+    score = asyncio.run(
+        RecognitionPipeline(
+            _MissingContinuationTimeSignatureRecognizer(),
+            dpi=72,
+        ).process(path)
+    )
+
+    signatures = [
+        (measure.time_signature.numerator, measure.time_signature.denominator)
+        for measure in score.parts[0].measures
+    ]
+    assert signatures == [(4, 4), (4, 4)]
 
 
 def test_pipeline_does_not_write_rendered_images(tmp_path: Path) -> None:
