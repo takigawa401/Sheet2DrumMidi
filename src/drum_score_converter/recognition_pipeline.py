@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Literal
 
@@ -12,7 +13,10 @@ from drum_score_converter.page_renderer import (
     RenderedPage,
 )
 from drum_score_converter.pdf_loader import PDFDocument, PDFLoader, PDFLoadError
-from drum_score_converter.recognition_model import RecognitionResult
+from drum_score_converter.recognition_model import (
+    RecognitionResult,
+    RecognizedTimeSignature,
+)
 from drum_score_converter.recognition_validator import (
     RecognitionValidationError,
     RecognitionValidator,
@@ -82,6 +86,10 @@ class RecognitionPipeline:
             recognition_result = await self._recognize_page(
                 rendered_page,
                 page_number,
+            )
+            recognition_result = self._inherit_time_signatures(
+                recognition_result,
+                merged_score,
             )
             self._validate_result(recognition_result, page_number)
             page_score = self._build_score(recognition_result, page_number)
@@ -189,6 +197,42 @@ class RecognitionPipeline:
                 page_number=page_number,
             ) from error
 
+    def _inherit_time_signatures(
+        self,
+        result: RecognitionResult,
+        merged_score: Score | None,
+    ) -> RecognitionResult:
+        page = result.pages[0]
+        normalized_parts = []
+        for part_index, part in enumerate(page.parts):
+            current_signature: RecognizedTimeSignature | None = None
+            if merged_score is not None and part_index < len(merged_score.parts):
+                previous = merged_score.parts[part_index].measures[-1].time_signature
+                current_signature = RecognizedTimeSignature(
+                    previous.numerator,
+                    previous.denominator,
+                )
+
+            normalized_measures = []
+            for measure in part.measures:
+                if measure.time_signature is not None:
+                    current_signature = measure.time_signature
+                    normalized_measures.append(measure)
+                elif current_signature is not None:
+                    normalized_measures.append(
+                        replace(measure, time_signature=current_signature)
+                    )
+                else:
+                    normalized_measures.append(measure)
+            normalized_parts.append(
+                replace(part, measures=tuple(normalized_measures))
+            )
+
+        return replace(
+            result,
+            pages=(replace(page, parts=tuple(normalized_parts)),),
+        )
+
     def _build_score(
         self,
         result: RecognitionResult,
@@ -229,10 +273,24 @@ class RecognitionPipeline:
                     page_number=page_number,
                 )
             try:
+                page_measures = page_part.measures
+                if (
+                    page_measures[0].number
+                    <= existing_part.measures[-1].number
+                ):
+                    number_shift = (
+                        existing_part.measures[-1].number
+                        + 1
+                        - page_measures[0].number
+                    )
+                    page_measures = tuple(
+                        replace(measure, number=measure.number + number_shift)
+                        for measure in page_measures
+                    )
                 merged_parts.append(
                     Part(
                         name=existing_part.name,
-                        measures=existing_part.measures + page_part.measures,
+                        measures=existing_part.measures + page_measures,
                     )
                 )
             except (TypeError, ValueError) as error:

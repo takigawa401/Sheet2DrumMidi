@@ -118,7 +118,7 @@ def test_write_saves_utf8_musicxml(tmp_path: Path) -> None:
     assert data == MusicXMLExporter().to_string(_example_score()).encode("utf-8")
 
 
-def test_exporter_rejects_overlapping_event_groups() -> None:
+def test_exporter_uses_voices_for_overlapping_event_groups() -> None:
     measure = Measure(
         1,
         TimeSignature(4, 4),
@@ -128,8 +128,14 @@ def test_exporter_rejects_overlapping_event_groups() -> None:
         ),
     )
 
-    with pytest.raises(MusicXMLExportError, match="overlapping"):
+    root = ET.fromstring(
         MusicXMLExporter().to_string(Score((Part("Drums", (measure,)),)))
+    )
+
+    assert [
+        note.findtext("voice") for note in root.findall("part/measure/note")
+    ] == ["1", "2"]
+    assert root.findtext("part/measure/backup/duration") == "4"
 
 
 def test_exporter_rejects_note_and_rest_at_the_same_offset() -> None:

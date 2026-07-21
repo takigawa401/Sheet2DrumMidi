@@ -12,6 +12,10 @@ from urllib.error import HTTPError
 import pytest
 
 import drum_score_converter._openai_vision_transport as transport_module
+from drum_score_converter._openai_vision_segments import (
+    merge_openai_segments,
+    split_openai_page,
+)
 from drum_score_converter.openai_vision_recognizer import (
     OpenAIConfig,
     OpenAIVisionRecognizer,
@@ -68,10 +72,16 @@ def _config() -> OpenAIConfig:
     return OpenAIConfig(api_key=API_KEY, model="vision-model")
 
 
-def test_openai_config_uses_gpt_5_by_default() -> None:
+def test_openai_config_uses_gpt_4_1_by_default() -> None:
     config = OpenAIConfig(api_key=API_KEY)
 
-    assert config.model == "gpt-5"
+    assert config.model == "gpt-4.1"
+
+
+def test_openai_config_uses_real_world_vision_timeout_by_default() -> None:
+    config = OpenAIConfig(api_key=API_KEY)
+
+    assert config.timeout_seconds == 300.0
 
 
 def _page(page_number: int = 3) -> RenderedPage:
@@ -143,6 +153,27 @@ def _provider_data(page_number: int = 3) -> dict[str, object]:
     }
 
 
+def test_small_page_is_not_segmented() -> None:
+    page = _page()
+
+    assert split_openai_page(page) == (page,)
+
+
+def test_segment_results_are_merged_in_order_with_page_local_numbers() -> None:
+    first = convert_openai_data(_provider_data(), expected_page_number=3)
+    second = convert_openai_data(_provider_data(), expected_page_number=3)
+
+    result = merge_openai_segments((first, second))
+
+    assert len(result.pages) == 1
+    assert [
+        measure.number for measure in result.pages[0].parts[0].measures
+    ] == [1, 2]
+    assert len(result.warnings) == 2
+    assert result.warnings[1].location is not None
+    assert result.warnings[1].location.measure_index == 1
+
+
 def _openai_response(data: Mapping[str, object]) -> dict[str, object]:
     return {
         "status": "completed",
@@ -208,12 +239,29 @@ def test_prompt_and_request_building_are_independently_testable() -> None:
 
     assert str(page.page_number) in prompt
     assert "Do not map instruments" in prompt
+    assert "page-local sequential numbers starting at 1" in prompt
+    assert "Note stems, beams, beat divisions" in prompt
+    assert "time signature for every measure" in prompt
+    assert "use Drum Kit for a single drum-set staff" in prompt
+    assert "prefer these canonical labels" in prompt
+    assert "Never emit more than one note" in prompt
+    assert "separate note for every visible drum hit" in prompt
+    assert "omit rests and leave silent intervals as gaps" in prompt
+    assert "one-measure repeat sign" in prompt
     assert "quarter-note units" in prompt
     assert "4/4 measure has capacity 4" in prompt
     assert request["model"] == "vision-model"
+    assert request["temperature"] == 0
+    assert request["max_output_tokens"] == 16_384
     encoded = base64.b64encode(page.content).decode("ascii")
     assert f"data:image/png;base64,{encoded}" in request_text
+    assert '"detail": "high"' in request_text
     assert '"type": "json_schema"' in request_text
+    assert '"type": {"type": "string", "const": "note"}' in request_text
+    assert '"type": {"type": "string", "const": "rest"}' in request_text
+    assert '"numerator": {"type": "integer", "minimum": 1}' in request_text
+    assert "duration must always be positive" in request_text
+    assert "each event is present only once" in request_text
     assert "quarter-note units" in request_text
 
 
@@ -392,6 +440,17 @@ def test_invalid_provider_response_is_provider_response_error(
 ) -> None:
     with pytest.raises(ProviderResponseError):
         parse_openai_response(response)
+
+
+def test_incomplete_response_reports_safe_reason() -> None:
+    with pytest.raises(ProviderResponseError, match="max_output_tokens"):
+        parse_openai_response(
+            {
+                "status": "incomplete",
+                "incomplete_details": {"reason": "max_output_tokens"},
+                "output": [],
+            }
+        )
 
 
 def test_conversion_failure_is_recognition_conversion_error() -> None:

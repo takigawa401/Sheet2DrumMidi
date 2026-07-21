@@ -18,8 +18,8 @@ from drum_score_converter.vision_recognizer import (
 )
 
 DEFAULT_OPENAI_ENDPOINT: Final = "https://api.openai.com/v1/responses"
-DEFAULT_OPENAI_MODEL: Final = "gpt-5"
-DEFAULT_OPENAI_TIMEOUT_SECONDS: Final = 60.0
+DEFAULT_OPENAI_MODEL: Final = "gpt-4.1"
+DEFAULT_OPENAI_TIMEOUT_SECONDS: Final = 300.0
 
 
 @dataclass(frozen=True, slots=True)
